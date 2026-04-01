@@ -223,5 +223,39 @@ def order_send_cost(
         _fail(exc, ctx.obj.json_output)
 
 
+@order_app.command("send")
+def order_send(
+    ctx: typer.Context,
+    items: Annotated[list[int], typer.Option(help="Repeat --items for each item id")],
+    receivers_name: Annotated[str, typer.Option(help="Receiver full name")],
+    service_id: Annotated[int, typer.Option(help="Service option ID")],
+    address_json: Annotated[Path, typer.Option(help="JSON file containing address object")],
+    add_new: Annotated[bool, typer.Option(help="Keep queue open for new items")] = False,
+) -> None:
+    """Create a forwarding order (/order/send).
+
+    Example:
+      privatebox order send --items 1001 --receivers-name "Jane Doe" --service-id 7 --address-json address.json
+
+    address.json can contain either:
+      - {"id": 123}
+      - {"search_id": "abc", "country_iso": "NZ"}
+      - full address fields, e.g. {"address":"123 Test St","city":"Wellington","country_iso":"NZ","post_code":"6011"}
+    """
+    c = _client(ctx.obj)
+    try:
+        address = json.loads(address_json.read_text(encoding="utf-8"))
+        payload = {
+            "items": items,
+            "receivers_name": receivers_name,
+            "service_id": service_id,
+            "add_new": add_new,
+            "address": address,
+        }
+        _print(c.post("/order/send", payload), ctx.obj.json_output)
+    except Exception as exc:
+        _fail(exc, ctx.obj.json_output)
+
+
 if __name__ == "__main__":
     app()

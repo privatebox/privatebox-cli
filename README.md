@@ -29,8 +29,18 @@ privatebox items inbox
 # Request scan for items
 privatebox order scan --items 1001 --items 1002 --destroy
 
+# Create a send order (address payload from JSON file)
+privatebox order send --items 1001 --receivers-name "Jane Doe" --service-id 7 --address-json address.json
+
 # Script-friendly output
 privatebox --json items sent
+```
+
+## Tests
+
+```bash
+pip install -e . pytest
+pytest -q
 ```
 
 ## Notes
