@@ -32,6 +32,13 @@ privatebox order scan --items 1001 --items 1002 --destroy
 # Create a send order (address payload from JSON file)
 privatebox order send --items 1001 --receivers-name "Jane Doe" --service-id 7 --address-json address.json
 
+# Queue item destruction
+privatebox order destroy --items 1003 --items 1004
+
+# Reference inputs
+privatebox meta countries
+privatebox meta frequency
+
 # Script-friendly output
 privatebox --json items sent
 ```

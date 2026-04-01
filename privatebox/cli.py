@@ -14,9 +14,11 @@ app = typer.Typer(help="PrivateBox CLI. Human-friendly by default, JSON when --j
 auth_app = typer.Typer(help="Authentication commands")
 items_app = typer.Typer(help="Mail item commands")
 order_app = typer.Typer(help="Order commands")
+meta_app = typer.Typer(help="Reference data commands")
 app.add_typer(auth_app, name="auth")
 app.add_typer(items_app, name="items")
 app.add_typer(order_app, name="order")
+app.add_typer(meta_app, name="meta")
 
 
 class Ctx:
@@ -253,6 +255,39 @@ def order_send(
             "address": address,
         }
         _print(c.post("/order/send", payload), ctx.obj.json_output)
+    except Exception as exc:
+        _fail(exc, ctx.obj.json_output)
+
+
+@order_app.command("destroy")
+def order_destroy(
+    ctx: typer.Context,
+    items: Annotated[list[int], typer.Option(help="Repeat --items for each item id")],
+) -> None:
+    """Queue items for destruction (/order/destroy)."""
+    c = _client(ctx.obj)
+    try:
+        _print(c.post("/order/destroy", {"items": items}), ctx.obj.json_output)
+    except Exception as exc:
+        _fail(exc, ctx.obj.json_output)
+
+
+@meta_app.command("countries")
+def meta_countries(ctx: typer.Context) -> None:
+    """List supported countries (/countries)."""
+    c = _client(ctx.obj)
+    try:
+        _print(c.get("/countries"), ctx.obj.json_output)
+    except Exception as exc:
+        _fail(exc, ctx.obj.json_output)
+
+
+@meta_app.command("frequency")
+def meta_frequency(ctx: typer.Context) -> None:
+    """List available frequencies (/frequency)."""
+    c = _client(ctx.obj)
+    try:
+        _print(c.get("/frequency"), ctx.obj.json_output)
     except Exception as exc:
         _fail(exc, ctx.obj.json_output)
 
