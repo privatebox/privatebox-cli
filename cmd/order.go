@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/yourorg/privatebox-cli/internal/api"
+	"github.com/privatebox/privatebox-cli/internal/api"
 )
 
 func runOrder(args []string, jsonOut bool) {

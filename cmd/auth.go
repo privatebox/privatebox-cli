@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yourorg/privatebox-cli/internal/api"
-	"github.com/yourorg/privatebox-cli/internal/config"
-	"github.com/yourorg/privatebox-cli/internal/deviceid"
-	"github.com/yourorg/privatebox-cli/internal/terminal"
+	"github.com/privatebox/privatebox-cli/internal/api"
+	"github.com/privatebox/privatebox-cli/internal/config"
+	"github.com/privatebox/privatebox-cli/internal/deviceid"
+	"github.com/privatebox/privatebox-cli/internal/terminal"
 )
 
 func runAuth(args []string, jsonOut bool) {

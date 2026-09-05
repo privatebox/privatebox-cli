@@ -11,16 +11,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          python-version: "3.11"
+          go-version-file: go.mod
+          cache: false
 
-      - name: Install
+      - name: Check formatting
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install pytest
+          gofmt -l . | tee /tmp/gofmt-files
+          test ! -s /tmp/gofmt-files
 
-      - name: Run tests
-        run: pytest -q
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...

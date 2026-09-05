@@ -1,6 +1,6 @@
 package main
 
-import "github.com/yourorg/privatebox-cli/cmd"
+import "github.com/privatebox/privatebox-cli/cmd"
 
 func main() {
 	cmd.Execute()
