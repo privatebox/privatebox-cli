@@ -14,16 +14,19 @@ import (
 )
 
 func runItems(args []string, jsonOut bool) {
-	if len(args) < 1 {
-		fatal("usage: privatebox items <sent|scanned>")
-	}
-	switch args[0] {
-	case "":
-		listItems(jsonOut, "inbox", args[1:])
-	case "sent":
+	switch {
+	case len(args) == 0 || args[0] == "inbox":
+		rest := args
+		if len(args) > 0 && args[0] == "inbox" {
+			rest = args[1:]
+		}
+		listItems(jsonOut, "inbox", rest)
+	case args[0] == "sent":
 		listItems(jsonOut, "sent", args[1:])
-	case "scanned":
+	case args[0] == "scanned":
 		listScannedItems(jsonOut, args[1:])
+	case strings.HasPrefix(args[0], "-"):
+		listItems(jsonOut, "inbox", args)
 	default:
 		fatal(fmt.Sprintf("unknown items subcommand: %s", args[0]))
 	}

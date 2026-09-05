@@ -1,0 +1,16 @@
+name: privatebox
+arch: amd64
+platform: linux
+version: 1.0.0
+section: utils
+priority: optional
+maintainer: Ishan Jayamanne <ishan@privatebox.co.nz>
+description: CLI to log in and fetch details from the Privatebox
+homepage: https://github.com/privatebox/privatebox-cli
+license: MIT
+
+contents:
+  - src: ./build/privatebox
+    dst: /usr/local/bin/privatebox
+    file_info:
+      mode: 0755

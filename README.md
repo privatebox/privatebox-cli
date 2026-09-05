@@ -87,10 +87,39 @@ Requires Go 1.22+ (https://go.dev/dl/) — only needed to *build* the CLI,
 not to run it.
 
 ```bash
-go build -o privatebox .        # builds for your current OS
-./build.sh                       # cross-compiles for Windows/Mac/Linux into dist/
+# macOS Intel
+GOOS=darwin GOARCH=amd64 go build -o build/privatebox .
+tar czf privatebox_darwin_amd64.tar.gz -C build privatebox
+shasum -a 256 privatebox_darwin_amd64.tar.gz
+
+# macOS Apple Silicon
+GOOS=darwin GOARCH=arm64 go build -o build/privatebox .
+tar czf privatebox_darwin_arm64.tar.gz -C build privatebox
+shasum -a 256 privatebox_darwin_arm64.tar.gz
+
+# Linux
+Change the x to the current version
+go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.zshrc
+source ~/.zshrc
+GOOS=linux GOARCH=amd64 go build -o build/privatebox .
+nfpm package --packager deb --config nfpm.yaml --target privatebox_1.x.x_amd64.deb
 ```
 
+Save these shasum you'll paste them into the Ruby formula in https://github.com/privatebox/homebrew-privatebox.
+
+#Upload these to a GitHub Releases page.
+```bash
+gh release create v1.x.x \
+  privatebox_darwin_arm64.tar.gz \
+  privatebox_darwin_amd64.tar.gz \
+  privatebox_1.x.x_amd64.deb \
+  --title "v1.x.x" --notes "Release v1.x.x"
+
+git tag v1.x.x
+git push origin v1.x.x
+```
+Additionaly: 
 `build.sh` produces:
 
 ```
@@ -102,37 +131,33 @@ dist/privatebox-windows-amd64.exe
 dist/privatebox-windows-arm64.exe
 ```
 
-Upload these to a GitHub Releases page (or your own file host).
-
 ## Installing (end users)
 
 No extra software is required — each binary is a single self-contained
 executable.
 
-**macOS / Linux:**
+**macOS:**
 ```bash
-curl -L -o privatebox https://your-release-url/privatebox-<os>-<arch>
-chmod +x privatebox
-sudo mv privatebox /usr/local/bin/     # put it on PATH
-privatebox --help
+brew tap privatebox/privatebox
+brew trust privatebox/privatebox
+brew install privatebox
+privatebox
 ```
-On macOS, the first run may trigger a Gatekeeper warning for an unsigned
-binary — right-click the file → Open, or sign/notarize with an Apple
-Developer account to avoid this.
+
+**Linux:**
+```bash
+wget https://github.com/privatebox/privatebox-cli/releases/download/v1.0.0/privatebox_1.0.0_amd64.deb
+sudo dpkg -i privatebox_1.0.0_amd64.deb
+privatebox
+```
 
 **Windows:**
-1. Download `privatebox-windows-amd64.exe`
-2. Rename it to `privatebox.exe` and place it somewhere on your `PATH`
+1. Download `https://github.com/privatebox/privatebox-cli/releases/download/v1.0.0/privatebox_windows_amd64.zip`
+2. Unzip and Rename it to `privatebox.exe` and place it somewhere on your `PATH`
    (e.g. `C:\Tools\`), or run it directly from any folder.
 3. Windows SmartScreen may warn about an unsigned `.exe` the first time —
    click "More info" → "Run anyway", or code-sign the binary to remove
    the warning.
-
-Optional friendlier distribution, once you're ready:
-- **Homebrew tap** (Mac/Linux): `brew install yourorg/tap/privatebox`
-- **Scoop / winget** (Windows): `scoop install privatebox`
-- **Install script**: a `curl | sh` script that detects OS/arch and fetches
-  the right binary automatically
 
 ## Example session
 
