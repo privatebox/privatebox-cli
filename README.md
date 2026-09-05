@@ -81,83 +81,109 @@ The API base URL is **not** persisted. It always comes from the
 that constant (or the env var) takes effect immediately without needing to
 log out or delete a config file.
 
-## Building (developer machine)
+## Installing
 
-Requires Go 1.22+ (https://go.dev/dl/) — only needed to *build* the CLI,
-not to run it.
+Each release provides AMD64 (`amd64`) and ARM64 (`arm64`) builds for Linux,
+macOS and Windows. Replace `1.0.0` below with the release version you want.
+
+### Linux packages
+
+The `.deb` and `.rpm` packages install the executable as
+`/usr/bin/privatebox`.
+
+Debian or Ubuntu, on AMD64 or ARM64:
 
 ```bash
-# macOS Intel
-GOOS=darwin GOARCH=amd64 go build -o build/privatebox .
-tar czf privatebox_darwin_amd64.tar.gz -C build privatebox
-shasum -a 256 privatebox_darwin_amd64.tar.gz
-
-# macOS Apple Silicon
-GOOS=darwin GOARCH=arm64 go build -o build/privatebox .
-tar czf privatebox_darwin_arm64.tar.gz -C build privatebox
-shasum -a 256 privatebox_darwin_arm64.tar.gz
-
-# Linux
-Change the x to the current version
-go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
-echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.zshrc
-source ~/.zshrc
-GOOS=linux GOARCH=amd64 go build -o build/privatebox .
-nfpm package --packager deb --config nfpm.yaml --target privatebox_1.x.x_amd64.deb
+VERSION=1.0.0
+ARCH=amd64 # Use arm64 on ARM64 systems.
+curl -LO "https://github.com/privatebox/privatebox-cli/releases/download/v${VERSION}/privatebox_${VERSION}_${ARCH}.deb"
+sudo dpkg -i "privatebox_${VERSION}_${ARCH}.deb"
+privatebox --version
 ```
 
-Save these shasum you'll paste them into the Ruby formula in https://github.com/privatebox/homebrew-privatebox.
+Fedora, RHEL or another RPM-based distribution, on AMD64 or ARM64:
 
-#Upload these to a GitHub Releases page.
 ```bash
-gh release create v1.x.x \
-  privatebox_darwin_arm64.tar.gz \
-  privatebox_darwin_amd64.tar.gz \
-  privatebox_1.x.x_amd64.deb \
-  --title "v1.x.x" --notes "Release v1.x.x"
-
-git tag v1.x.x
-git push origin v1.x.x
-```
-Additionaly: 
-`build.sh` produces:
-
-```
-dist/privatebox-linux-amd64
-dist/privatebox-linux-arm64
-dist/privatebox-darwin-amd64      (Intel Mac)
-dist/privatebox-darwin-arm64      (Apple Silicon Mac)
-dist/privatebox-windows-amd64.exe
-dist/privatebox-windows-arm64.exe
+VERSION=1.0.0
+ARCH=amd64 # Use arm64 on ARM64 systems.
+curl -LO "https://github.com/privatebox/privatebox-cli/releases/download/v${VERSION}/privatebox_${VERSION}_${ARCH}.rpm"
+sudo rpm -Uvh "privatebox_${VERSION}_${ARCH}.rpm"
+privatebox --version
 ```
 
-## Installing (end users)
+For distributions without `.deb` or `.rpm` support, download
+`privatebox_<version>_linux_amd64.tar.gz` or
+`privatebox_<version>_linux_arm64.tar.gz`, extract it, then install the binary
+somewhere on your `PATH`:
 
-No extra software is required — each binary is a single self-contained
-executable.
+```bash
+sudo install -m 0755 privatebox /usr/local/bin/privatebox
+```
 
-**macOS:**
+### macOS
+
+Homebrew automatically selects the correct build for Intel (`amd64`) or Apple
+Silicon (`arm64`):
+
 ```bash
 brew tap privatebox/privatebox
-brew trust privatebox/privatebox
 brew install privatebox
-privatebox
+privatebox --version
 ```
 
-**Linux:**
+Alternatively, download `privatebox_<version>_darwin_amd64.tar.gz` for an
+Intel Mac or `privatebox_<version>_darwin_arm64.tar.gz` for Apple Silicon,
+extract it, then run:
+
 ```bash
-wget https://github.com/privatebox/privatebox-cli/releases/download/v1.0.0/privatebox_1.0.0_amd64.deb
-sudo dpkg -i privatebox_1.0.0_amd64.deb
-privatebox
+sudo install -m 0755 privatebox /usr/local/bin/privatebox
 ```
 
-**Windows:**
-1. Download `https://github.com/privatebox/privatebox-cli/releases/download/v1.0.0/privatebox_windows_amd64.zip`
-2. Unzip and Rename it to `privatebox.exe` and place it somewhere on your `PATH`
-   (e.g. `C:\Tools\`), or run it directly from any folder.
-3. Windows SmartScreen may warn about an unsigned `.exe` the first time —
-   click "More info" → "Run anyway", or code-sign the binary to remove
-   the warning.
+### Windows
+
+Download `privatebox_<version>_windows_amd64.zip` for an Intel/AMD 64-bit PC,
+or `privatebox_<version>_windows_arm64.zip` for a Windows on ARM PC. Extract
+`privatebox.exe` and put it in a directory on your `PATH`, such as
+`C:\Tools`. Windows SmartScreen may warn about an unsigned executable the
+first time it runs.
+
+### Verify a download
+
+Every release includes `checksums.txt` containing SHA-256 checksums. On Linux,
+download it beside the selected package or archive and run:
+
+```bash
+sha256sum --ignore-missing -c checksums.txt
+```
+
+On macOS, compare the checksum printed by `shasum -a 256 <filename>` with the
+matching line in `checksums.txt`.
+
+On Windows, compare the relevant line in `checksums.txt` with:
+
+```powershell
+Get-FileHash .\privatebox_1.0.0_windows_amd64.zip -Algorithm SHA256
+```
+
+## Building and releasing
+
+Building locally requires Go 1.22 or newer:
+
+```bash
+go build -o privatebox .
+./privatebox --version # Reports "dev" for an untagged local build.
+```
+
+Maintainers can validate every release target locally with GoReleaser:
+
+```bash
+goreleaser release --snapshot --clean
+```
+
+Pushing a tag whose name starts with `v` runs the release workflow. GoReleaser
+builds all six OS/architecture combinations, injects the tag into
+`privatebox --version`, creates the archives and Linux packages, writes
+`checksums.txt`, and publishes everything to the matching GitHub Release.
 
 ## Example session
 

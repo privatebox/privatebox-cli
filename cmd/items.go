@@ -10,7 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/yourorg/privatebox-cli/internal/api"
+	"github.com/privatebox/privatebox-cli/internal/api"
 )
 
 func runItems(args []string, jsonOut bool) {

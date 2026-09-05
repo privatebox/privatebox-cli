@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/yourorg/privatebox-cli/internal/config"
+	"github.com/privatebox/privatebox-cli/internal/config"
 )
 
 func runStatus(_ []string, jsonOut bool) {

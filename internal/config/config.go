@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yourorg/privatebox-cli/internal/keyring"
+	"github.com/privatebox/privatebox-cli/internal/keyring"
 )
 
 const (

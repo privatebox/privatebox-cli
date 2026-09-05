@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yourorg/privatebox-cli/internal/api"
-	"github.com/yourorg/privatebox-cli/internal/config"
-	"github.com/yourorg/privatebox-cli/internal/deviceid"
+	"github.com/privatebox/privatebox-cli/internal/api"
+	"github.com/privatebox/privatebox-cli/internal/config"
+	"github.com/privatebox/privatebox-cli/internal/deviceid"
 )
 
-const version = "0.2.0"
+var version = "dev"
 
 // Execute parses global flags, then dispatches to the right subcommand.
 // This is a small hand-rolled router (stdlib flag package only);

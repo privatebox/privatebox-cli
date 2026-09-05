@@ -1,0 +1,54 @@
+version: 2
+
+project_name: privatebox
+
+builds:
+  - id: privatebox
+    main: .
+    binary: privatebox
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/privatebox/privatebox-cli/cmd.version={{ .Tag }}
+
+archives:
+  - id: archives
+    ids:
+      - privatebox
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+nfpms:
+  - id: linux-packages
+    ids:
+      - privatebox
+    package_name: privatebox
+    vendor: Private Box Limited
+    homepage: https://github.com/privatebox/privatebox-cli
+    maintainer: Private Box <support@privatebox.co.nz>
+    description: Command-line client for the PrivateBox API
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+changelog:
+  sort: asc
