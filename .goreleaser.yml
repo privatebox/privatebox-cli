@@ -50,5 +50,19 @@ checksum:
   name_template: checksums.txt
   algorithm: sha256
 
+homebrew_casks:
+  - ids:
+      - archives
+    repository:
+      owner: privatebox
+      name: homebrew-privatebox
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_msg_template: "PB-1262 Update privatebox to {{ .Tag }}"
+    homepage: https://www.privatebox.co.nz/
+    description: Command-line client for the PrivateBox API
+    binaries:
+      - privatebox
+    skip_upload: auto
+
 changelog:
   sort: asc
