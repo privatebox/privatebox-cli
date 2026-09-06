@@ -127,7 +127,7 @@ Silicon (`arm64`):
 
 ```bash
 brew tap privatebox/privatebox
-brew install privatebox
+brew install --cask privatebox
 privatebox --version
 ```
 
@@ -183,7 +183,14 @@ goreleaser release --snapshot --clean
 Pushing a tag whose name starts with `v` runs the release workflow. GoReleaser
 builds all six OS/architecture combinations, injects the tag into
 `privatebox --version`, creates the archives and Linux packages, writes
-`checksums.txt`, and publishes everything to the matching GitHub Release.
+`checksums.txt`, publishes everything to the matching GitHub Release, and
+updates the PrivateBox Homebrew tap.
+
+The release workflow uses a short-lived GitHub App token for the tap update.
+Configure the `HOMEBREW_TAP_APP_ID` Actions variable and the
+`HOMEBREW_TAP_APP_PRIVATE_KEY` Actions secret in this repository. The app
+should be installed only on `privatebox/homebrew-privatebox` with repository
+contents read/write access.
 
 ## Example session
 
