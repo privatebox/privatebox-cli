@@ -1,0 +1,77 @@
+name: Homebrew authentication check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate credential inputs
+        env:
+          APP_ID: ${{ vars.HOMEBREW_TAP_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$APP_ID" ]]; then
+            echo "::error::HOMEBREW_TAP_APP_ID is unavailable. Add it as a repository Actions variable on privatebox/privatebox-cli. If it is an organisation variable, grant this repository access. Environment variables are not visible to this job."
+            exit 1
+          fi
+
+          if [[ ! "$APP_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::HOMEBREW_TAP_APP_ID is present but is not numeric. Use the GitHub App ID, not its Client ID."
+            exit 1
+          fi
+
+          echo "App ID: present, numeric, ${#APP_ID} characters (value redacted)."
+
+          if [[ -z "$PRIVATE_KEY" ]]; then
+            echo "::error::HOMEBREW_TAP_APP_PRIVATE_KEY is unavailable. Add it as a repository Actions secret on privatebox/privatebox-cli. If it is an organisation secret, grant this repository access."
+            exit 1
+          fi
+
+          first_line=$(printf '%s\n' "$PRIVATE_KEY" | sed -n '1p' | tr -d '\r')
+          last_line=$(printf '%s\n' "$PRIVATE_KEY" | sed -n '$p' | tr -d '\r')
+          key_bytes=$(printf '%s' "$PRIVATE_KEY" | wc -c | tr -d ' ')
+
+          if [[ "$first_line" == "-----BEGIN RSA PRIVATE KEY-----" && "$last_line" == "-----END RSA PRIVATE KEY-----" ]]; then
+            key_format="PKCS#1"
+          elif [[ "$first_line" == "-----BEGIN PRIVATE KEY-----" && "$last_line" == "-----END PRIVATE KEY-----" ]]; then
+            key_format="PKCS#8"
+          else
+            echo "::error::HOMEBREW_TAP_APP_PRIVATE_KEY is present but does not have a recognised PEM envelope. Copy the complete downloaded .pem file, including its BEGIN and END lines."
+            exit 1
+          fi
+
+          echo "Private key: present, valid $key_format PEM envelope, $key_bytes bytes (content redacted)."
+
+      - name: Create Homebrew tap token
+        id: homebrew-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.HOMEBREW_TAP_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
+          owner: privatebox
+          repositories: homebrew-privatebox
+
+      - name: Verify tap access
+        env:
+          GH_TOKEN: ${{ steps.homebrew-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository=$(gh api repos/privatebox/homebrew-privatebox --jq '.full_name')
+          can_push=$(gh api repos/privatebox/homebrew-privatebox --jq '.permissions.push')
+
+          if [[ "$can_push" != "true" ]]; then
+            echo "::error::The GitHub App token can read $repository but cannot write to it. Grant the app Contents: Read and write and reinstall or approve the updated permissions."
+            exit 1
+          fi
+
+          echo "GitHub App token: created successfully; read/write repository access verified for $repository (token redacted)."
