@@ -59,6 +59,7 @@ jobs:
           private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
           owner: privatebox
           repositories: homebrew-privatebox
+          permission-contents: write
 
       - name: Verify tap access
         env:
@@ -68,11 +69,4 @@ jobs:
           set -euo pipefail
 
           repository=$(gh api repos/privatebox/homebrew-privatebox --jq '.full_name')
-          can_push=$(gh api repos/privatebox/homebrew-privatebox --jq '.permissions.push')
-
-          if [[ "$can_push" != "true" ]]; then
-            echo "::error::The GitHub App token can read $repository but cannot write to it. Grant the app Contents: Read and write and reinstall or approve the updated permissions."
-            exit 1
-          fi
-
-          echo "GitHub App token: created successfully; read/write repository access verified for $repository (token redacted)."
+          echo "GitHub App token: created successfully with Contents write permission for $repository (token redacted)."
