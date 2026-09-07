@@ -35,8 +35,9 @@ jobs:
             exit 1
           fi
 
-          first_line=$(printf '%s\n' "$PRIVATE_KEY" | sed -n '1p' | tr -d '\r')
-          last_line=$(printf '%s\n' "$PRIVATE_KEY" | sed -n '$p' | tr -d '\r')
+          normalised_key=$(printf '%s' "$PRIVATE_KEY" | tr -d '\r')
+          first_line=$(printf '%s\n' "$normalised_key" | sed -n '1p')
+          last_line=$(printf '%s\n' "$normalised_key" | sed -n '$p')
           key_bytes=$(printf '%s' "$PRIVATE_KEY" | wc -c | tr -d ' ')
 
           if [[ "$first_line" == "-----BEGIN RSA PRIVATE KEY-----" && "$last_line" == "-----END RSA PRIVATE KEY-----" ]]; then
