@@ -1,4 +1,4 @@
-// Package config persists local CLI state: the API base URL, the
+// Package config persists local CLI state:
 // logged-in email, and the session token. The token is stored in the
 // OS keyring when one is available, and only falls back to the config
 // file (0600) otherwise.
@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	// TODO: replace with your real API base URL, or override at
-	// runtime with the PRIVATEBOX_API_URL environment variable.
-	defaultAPIBaseURL = "https://test-api.privatebox.co.nz/v1"
+	// Tests can override the production endpoint with PRIVATEBOX_API_URL.
+	defaultAPIBaseURL = "https://api.privatebox.co.nz/v1"
 
 	keyringService = "privatebox-cli"
 	keyringAccount = "session-token"
