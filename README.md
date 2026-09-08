@@ -88,46 +88,13 @@ log out or delete a config file.
 ## Installing
 
 Each release provides AMD64 (`amd64`) and ARM64 (`arm64`) builds for Linux,
-macOS and Windows. Replace `1.0.0` below with the release version you want.
+macOS and Windows. The commands below resolve the latest published release
+automatically, so this README does not need a version change for each release.
 
-### Linux packages
+### Homebrew on macOS or Linux
 
-The `.deb` and `.rpm` packages install the executable as
-`/usr/bin/privatebox`.
-
-Debian or Ubuntu, on AMD64 or ARM64:
-
-```bash
-VERSION=1.0.0
-ARCH=amd64 # Use arm64 on ARM64 systems.
-curl -LO "https://github.com/privatebox/privatebox-cli/releases/download/v${VERSION}/privatebox_${VERSION}_${ARCH}.deb"
-sudo dpkg -i "privatebox_${VERSION}_${ARCH}.deb"
-privatebox --version
-```
-
-Fedora, RHEL or another RPM-based distribution, on AMD64 or ARM64:
-
-```bash
-VERSION=1.0.0
-ARCH=amd64 # Use arm64 on ARM64 systems.
-curl -LO "https://github.com/privatebox/privatebox-cli/releases/download/v${VERSION}/privatebox_${VERSION}_${ARCH}.rpm"
-sudo rpm -Uvh "privatebox_${VERSION}_${ARCH}.rpm"
-privatebox --version
-```
-
-For distributions without `.deb` or `.rpm` support, download
-`privatebox_<version>_linux_amd64.tar.gz` or
-`privatebox_<version>_linux_arm64.tar.gz`, extract it, then install the binary
-somewhere on your `PATH`:
-
-```bash
-sudo install -m 0755 privatebox /usr/local/bin/privatebox
-```
-
-### macOS
-
-Homebrew automatically selects the correct build for Intel (`amd64`) or Apple
-Silicon (`arm64`):
+Homebrew automatically selects the correct build for the operating system and
+architecture:
 
 ```bash
 brew tap privatebox/privatebox
@@ -135,41 +102,171 @@ brew install --cask privatebox
 privatebox --version
 ```
 
-Alternatively, download `privatebox_<version>_darwin_amd64.tar.gz` for an
-Intel Mac or `privatebox_<version>_darwin_arm64.tar.gz` for Apple Silicon,
-extract it, then run:
+Upgrade an existing Homebrew installation with:
 
 ```bash
-sudo install -m 0755 privatebox /usr/local/bin/privatebox
+brew update
+brew upgrade --cask privatebox
+privatebox --version
 ```
+
+### Debian or Ubuntu
+
+The `.deb` package installs the executable as `/usr/bin/privatebox`. These
+commands support AMD64 and ARM64, including Ubuntu under WSL:
+
+```bash
+RELEASE_TAG="$(
+  curl -fsSL https://api.github.com/repos/privatebox/privatebox-cli/releases/latest |
+    sed -n 's/.*"tag_name": "\(v[^"]*\)".*/\1/p'
+)"
+VERSION="${RELEASE_TAG#v}"
+ARCH="$(dpkg --print-architecture)"
+
+case "$ARCH" in
+  amd64|arm64) ;;
+  *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+esac
+
+ASSET="privatebox_${VERSION}_${ARCH}.deb"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/${ASSET}"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/checksums.txt"
+sha256sum --ignore-missing --check checksums.txt
+sudo apt install "./${ASSET}"
+privatebox --version
+```
+
+Run the same commands again to upgrade to a newer release; `apt` replaces the
+installed package.
+
+### Fedora, RHEL or another RPM-based distribution
+
+The `.rpm` package installs the executable as `/usr/bin/privatebox`:
+
+```bash
+RELEASE_TAG="$(
+  curl -fsSL https://api.github.com/repos/privatebox/privatebox-cli/releases/latest |
+    sed -n 's/.*"tag_name": "\(v[^"]*\)".*/\1/p'
+)"
+VERSION="${RELEASE_TAG#v}"
+
+case "$(uname -m)" in
+  x86_64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+ASSET="privatebox_${VERSION}_${ARCH}.rpm"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/${ASSET}"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/checksums.txt"
+sha256sum --ignore-missing --check checksums.txt
+sudo dnf install "./${ASSET}"
+privatebox --version
+```
+
+Run the same commands again to upgrade; `dnf` replaces the installed package.
+
+### Other Linux distributions
+
+For distributions without `.deb` or `.rpm` support, install the latest archive
+on the current architecture:
+
+```bash
+RELEASE_TAG="$(
+  curl -fsSL https://api.github.com/repos/privatebox/privatebox-cli/releases/latest |
+    sed -n 's/.*"tag_name": "\(v[^"]*\)".*/\1/p'
+)"
+VERSION="${RELEASE_TAG#v}"
+
+case "$(uname -m)" in
+  x86_64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+ASSET="privatebox_${VERSION}_linux_${ARCH}.tar.gz"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/${ASSET}"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/checksums.txt"
+sha256sum --ignore-missing --check checksums.txt
+tar -xzf "$ASSET"
+sudo install -m 0755 privatebox /usr/local/bin/privatebox
+privatebox --version
+```
+
+Repeat the commands to upgrade; `install` replaces the existing binary.
+
+### macOS without Homebrew
+
+Homebrew is recommended. For a manual installation instead:
+
+```bash
+RELEASE_TAG="$(
+  curl -fsSL https://api.github.com/repos/privatebox/privatebox-cli/releases/latest |
+    sed -n 's/.*"tag_name": "\(v[^"]*\)".*/\1/p'
+)"
+VERSION="${RELEASE_TAG#v}"
+
+case "$(uname -m)" in
+  x86_64) ARCH=amd64 ;;
+  arm64) ARCH=arm64 ;;
+  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+
+ASSET="privatebox_${VERSION}_darwin_${ARCH}.tar.gz"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/${ASSET}"
+curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/checksums.txt"
+EXPECTED="$(grep "  ${ASSET}$" checksums.txt | cut -d ' ' -f 1)"
+ACTUAL="$(shasum -a 256 "$ASSET" | cut -d ' ' -f 1)"
+test -n "$EXPECTED" && test "$ACTUAL" = "$EXPECTED"
+tar -xzf "$ASSET"
+sudo install -m 0755 privatebox /usr/local/bin/privatebox
+privatebox --version
+```
+
+Repeat the commands to upgrade; `install` replaces the existing binary.
 
 ### Windows
 
-Download `privatebox_<version>_windows_amd64.zip` for an Intel/AMD 64-bit PC,
-or `privatebox_<version>_windows_arm64.zip` for a Windows on ARM PC. Extract
-`privatebox.exe` and put it in a directory on your `PATH`, such as
-`C:\Tools`. Windows SmartScreen may warn about an unsigned executable the
-first time it runs.
-
-### Verify a download
-
-Every release includes `checksums.txt` containing SHA-256 checksums. On Linux,
-download it beside the selected package or archive and run:
-
-```bash
-sha256sum --ignore-missing -c checksums.txt
-```
-
-On macOS, compare the checksum printed by `shasum -a 256 <filename>` with the
-matching line in `checksums.txt`.
-
-On Windows, compare the relevant line in `checksums.txt` with:
+In PowerShell, download the latest AMD64 or ARM64 archive, verify it and copy
+the executable to `C:\Tools`:
 
 ```powershell
-Get-FileHash .\privatebox_1.0.0_windows_amd64.zip -Algorithm SHA256
+$Release = Invoke-RestMethod "https://api.github.com/repos/privatebox/privatebox-cli/releases/latest"
+$Version = $Release.tag_name.TrimStart("v")
+
+switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()) {
+    "X64"   { $Arch = "amd64" }
+    "Arm64" { $Arch = "arm64" }
+    default { throw "Unsupported architecture" }
+}
+
+$AssetName = "privatebox_${Version}_windows_${Arch}.zip"
+$Asset = $Release.assets | Where-Object name -eq $AssetName
+$Checksums = $Release.assets | Where-Object name -eq "checksums.txt"
+
+if (-not $Asset -or -not $Checksums) { throw "Release assets not found" }
+
+Invoke-WebRequest $Asset.browser_download_url -OutFile $AssetName
+Invoke-WebRequest $Checksums.browser_download_url -OutFile "checksums.txt"
+
+$ExpectedLine = Get-Content .\checksums.txt | Where-Object { $_ -match [regex]::Escape($AssetName) }
+if (-not $ExpectedLine) { throw "Checksum not found" }
+
+$Expected = ($ExpectedLine -split '\s+')[0].ToLowerInvariant()
+$Actual = (Get-FileHash ".\$AssetName" -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($Actual -ne $Expected) { throw "Checksum verification failed" }
+
+Expand-Archive ".\$AssetName" -DestinationPath ".\privatebox" -Force
+New-Item -ItemType Directory -Path "C:\Tools" -Force | Out-Null
+Copy-Item ".\privatebox\privatebox.exe" "C:\Tools\privatebox.exe" -Force
+& "C:\Tools\privatebox.exe" --version
 ```
 
-## Building and releasing
+Run the same commands again to upgrade. Ensure `C:\Tools` is on `PATH` if you
+want to invoke `privatebox` without its full path. Windows SmartScreen may warn
+about an unsigned executable the first time it runs.
+
+## Building locally
 
 Building locally requires Go 1.22 or newer:
 
@@ -177,24 +274,6 @@ Building locally requires Go 1.22 or newer:
 go build -o privatebox .
 ./privatebox --version # Reports "dev" for an untagged local build.
 ```
-
-Maintainers can validate every release target locally with GoReleaser:
-
-```bash
-goreleaser release --snapshot --clean
-```
-
-Pushing a tag whose name starts with `v` runs the release workflow. GoReleaser
-builds all six OS/architecture combinations, injects the tag into
-`privatebox --version`, creates the archives and Linux packages, writes
-`checksums.txt`, publishes everything to the matching GitHub Release, and
-updates the PrivateBox Homebrew tap.
-
-The release workflow uses a short-lived GitHub App token for the tap update.
-Configure the `HOMEBREW_TAP_APP_ID` Actions variable and the
-`HOMEBREW_TAP_APP_PRIVATE_KEY` Actions secret in this repository. The app
-should be installed only on `privatebox/homebrew-privatebox` with repository
-contents read/write access.
 
 ## Example session
 
