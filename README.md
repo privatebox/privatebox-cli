@@ -117,7 +117,7 @@ If no keyring backend is found (e.g. a headless Linux box without
 token in an endpoint-scoped `~/.privatebox/session-<hash>.json` file with owner-only permissions (`0600`)
 and prints a one-line note when this happens. A locked or denied credential store is an error, not a reason to fall back
 to plaintext. Windows requires Credential Manager and never falls back to a
-plaintext token file. Local files are atomically replaced; on Unix the directory
+plaintext token file. On Unix, session files are atomically replaced, the directory
 is `0700` and the file is `0600`.
 
 Sessions are isolated by API endpoint. **Upgrading from v1.0.5 or earlier requires

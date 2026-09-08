@@ -14,7 +14,7 @@ func runMeta(args []string, jsonOut bool) {
 	case "frequency":
 		showFrequencies(jsonOut)
 	default:
-		fatal(fmt.Sprintf("unknown meta subcommand: %s", args[0]))
+		fail(2, fmt.Sprintf("unknown meta subcommand: %s", args[0]))
 	}
 }
 

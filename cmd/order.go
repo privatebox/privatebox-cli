@@ -27,7 +27,7 @@ func runOrder(args []string, jsonOut bool) {
 	case "destroy":
 		runOrderDestroy(args[1:], jsonOut)
 	default:
-		fatal(fmt.Sprintf("unknown order subcommand: %s", args[0]))
+		fail(2, fmt.Sprintf("unknown order subcommand: %s", args[0]))
 	}
 }
 
@@ -40,7 +40,7 @@ func runOrderScan(args []string, jsonOut bool) {
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
-		fatal("invalid --items:", err)
+		fail(2, fmt.Sprint("invalid --items: ", err))
 	}
 
 	if *destroy {
@@ -76,13 +76,13 @@ func runOrderSendCost(args []string, jsonOut bool) {
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
-		fatal("invalid --items:", err)
+		fail(2, fmt.Sprint("invalid --items: ", err))
 	}
 	if strings.TrimSpace(*country) == "" {
-		fatal("--country is required")
+		fail(2, "--country is required")
 	}
 	if strings.TrimSpace(*address) == "" {
-		fatal("--address is required")
+		fail(2, "--address is required")
 	}
 
 	_, client := requireClient()
@@ -166,19 +166,19 @@ func runOrderSend(args []string, jsonOut bool) {
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
-		fatal("invalid --items:", err)
+		fail(2, fmt.Sprint("invalid --items: ", err))
 	}
 	if strings.TrimSpace(*receiversName) == "" {
-		fatal("--receivers-name is required")
+		fail(2, "--receivers-name is required")
 	}
 	if *serviceID <= 0 {
-		fatal("--service-id is required")
+		fail(2, "--service-id is required")
 	}
 	if strings.TrimSpace(*countryISO) == "" {
-		fatal("--country-iso is required")
+		fail(2, "--country-iso is required")
 	}
 	if strings.TrimSpace(*searchID) == "" && strings.TrimSpace(*address) == "" {
-		fatal("either --search-id or --address is required")
+		fail(2, "either --search-id or --address is required")
 	}
 
 	_, client := requireClient()
@@ -251,7 +251,7 @@ func runOrderDestroy(args []string, jsonOut bool) {
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
-		fatal("invalid --items:", err)
+		fail(2, fmt.Sprint("invalid --items: ", err))
 	}
 
 	confirmDestruction(*yes, ids)

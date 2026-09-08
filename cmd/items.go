@@ -28,7 +28,7 @@ func runItems(args []string, jsonOut bool) {
 	case strings.HasPrefix(args[0], "-"):
 		listItems(jsonOut, "inbox", args)
 	default:
-		fatal(fmt.Sprintf("unknown items subcommand: %s", args[0]))
+		fail(2, fmt.Sprintf("unknown items subcommand: %s", args[0]))
 	}
 }
 
