@@ -79,11 +79,8 @@ and prints a one-line note when this happens. Either way, the flow ("stores
 token in keyring when available") is handled transparently — callers don't
 need to know or care which backend was used.
 
-The API base URL is **not** persisted. It always comes from the
-`PRIVATEBOX_API_URL` environment variable when set, otherwise from the
-`defaultAPIBaseURL` constant in `internal/config/config.go` — so changing
-that constant (or the env var) takes effect immediately without needing to
-log out or delete a config file.
+The CLI connects to the Private Box production API by default. No API URL
+configuration is needed.
 
 ## Installing
 
@@ -110,90 +107,28 @@ brew upgrade --cask privatebox
 privatebox --version
 ```
 
-### Debian or Ubuntu
+### Linux and WSL: install or upgrade
 
-The `.deb` package installs the executable as `/usr/bin/privatebox`. These
-commands support AMD64 and ARM64, including Ubuntu under WSL:
+Run these commands from a writable directory (requires Bash and curl):
 
 ```bash
-RELEASE_TAG="$(
-  curl -fsSL https://api.github.com/repos/privatebox/privatebox-cli/releases/latest |
-    sed -n 's/.*"tag_name": "\(v[^"]*\)".*/\1/p'
-)"
-VERSION="${RELEASE_TAG#v}"
-ARCH="$(dpkg --print-architecture)"
-
-case "$ARCH" in
-  amd64|arm64) ;;
-  *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
-esac
-
-ASSET="privatebox_${VERSION}_${ARCH}.deb"
-curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/${ASSET}"
-curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/checksums.txt"
-sha256sum --ignore-missing --check checksums.txt
-sudo apt install "./${ASSET}"
+curl -fsSL https://raw.githubusercontent.com/privatebox/privatebox-cli/main/install.sh -o privatebox-install.sh &&
+  bash privatebox-install.sh
 privatebox --version
 ```
 
-Run the same commands again to upgrade to a newer release; `apt` replaces the
-installed package.
+Use the same commands for upgrades. The [installer](install.sh) detects AMD64
+or ARM64, downloads the latest stable release, verifies its SHA-256 checksum,
+then installs it. It prompts for sudo access only when needed to install:
 
-### Fedora, RHEL or another RPM-based distribution
+- Debian/Ubuntu: a `.deb` package through APT at `/usr/bin/privatebox`.
+- Fedora/RHEL with DNF: an `.rpm` package at `/usr/bin/privatebox`.
+- Other Linux distributions: the archive binary at `/usr/local/bin/privatebox`.
 
-The `.rpm` package installs the executable as `/usr/bin/privatebox`:
-
-```bash
-RELEASE_TAG="$(
-  curl -fsSL https://api.github.com/repos/privatebox/privatebox-cli/releases/latest |
-    sed -n 's/.*"tag_name": "\(v[^"]*\)".*/\1/p'
-)"
-VERSION="${RELEASE_TAG#v}"
-
-case "$(uname -m)" in
-  x86_64) ARCH=amd64 ;;
-  aarch64|arm64) ARCH=arm64 ;;
-  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-esac
-
-ASSET="privatebox_${VERSION}_${ARCH}.rpm"
-curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/${ASSET}"
-curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/checksums.txt"
-sha256sum --ignore-missing --check checksums.txt
-sudo dnf install "./${ASSET}"
-privatebox --version
-```
-
-Run the same commands again to upgrade; `dnf` replaces the installed package.
-
-### Other Linux distributions
-
-For distributions without `.deb` or `.rpm` support, install the latest archive
-on the current architecture:
-
-```bash
-RELEASE_TAG="$(
-  curl -fsSL https://api.github.com/repos/privatebox/privatebox-cli/releases/latest |
-    sed -n 's/.*"tag_name": "\(v[^"]*\)".*/\1/p'
-)"
-VERSION="${RELEASE_TAG#v}"
-
-case "$(uname -m)" in
-  x86_64) ARCH=amd64 ;;
-  aarch64|arm64) ARCH=arm64 ;;
-  *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-esac
-
-ASSET="privatebox_${VERSION}_linux_${ARCH}.tar.gz"
-curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/${ASSET}"
-curl -fLO "https://github.com/privatebox/privatebox-cli/releases/download/${RELEASE_TAG}/checksums.txt"
-sha256sum --ignore-missing --check checksums.txt
-tar -xzf "$ASSET"
-sudo install -m 0755 privatebox /usr/local/bin/privatebox
-privatebox --version
-```
-
-Repeat the commands to upgrade; `install` replaces the existing binary.
+If you installed with Homebrew, use the Homebrew upgrade commands above
+instead of mixing installation methods. No Git checkout, Go or GitHub CLI
+is required. Manual packages and archives remain available on the
+[releases page](https://github.com/privatebox/privatebox-cli/releases/latest).
 
 ### macOS without Homebrew
 
@@ -278,13 +213,12 @@ go build -o privatebox .
 ## Example session
 
 ```
-$ PRIVATEBOX_API_URL=https://api.example.com/v1 privatebox auth login --email jane@example.com
+$ privatebox auth login --email jane@example.com
 Password:
 Logged in as jane@example.com
 
 $ privatebox status
 Logged in as Jane Doe <jane@example.com>
-API: https://api.example.com/v1
 
 $ privatebox items
 ID     RECEIVED        WEIGHT  TYPE      STATUS    SCAN   FROM     TO
