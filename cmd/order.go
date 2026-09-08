@@ -9,11 +9,13 @@ import (
 	"text/tabwriter"
 
 	"github.com/privatebox/privatebox-cli/internal/api"
+	"github.com/privatebox/privatebox-cli/internal/terminal"
 )
 
 func runOrder(args []string, jsonOut bool) {
 	if len(args) < 1 {
-		fatal("usage: privatebox order <scan|send|send-cost|destroy>")
+		groupHelp("order", "scan|send|send-cost|destroy")
+		return
 	}
 	switch args[0] {
 	case "scan":
@@ -30,16 +32,20 @@ func runOrder(args []string, jsonOut bool) {
 }
 
 func runOrderScan(args []string, jsonOut bool) {
-	fs := flag.NewFlagSet("order scan", flag.ExitOnError)
-	items := fs.String("items", "", "item IDs to scan (comma-separated)")
+	fs := flag.NewFlagSet("order scan", flag.ContinueOnError)
+	items := itemFlag(fs)
+	yes := fs.Bool("yes", false, "confirm destruction without prompting")
 	destroy := fs.Bool("destroy", false, "destroy items automatically after scanning")
-	fs.Parse(args)
+	parseFlags(fs, args)
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
 		fatal("invalid --items:", err)
 	}
 
+	if *destroy {
+		confirmDestruction(*yes, ids)
+	}
 	_, client := requireClient()
 	order, err := client.RequestScan(ids, *destroy)
 	if err != nil {
@@ -50,23 +56,23 @@ func runOrderScan(args []string, jsonOut bool) {
 		printJSON(order)
 		return
 	}
-	fmt.Printf("Scan requested for %d item(s). Order ID: %s\n", len(ids), order.OrderID)
+	textPrintf("Scan requested for %d item(s). %s\n", len(ids), order.StatusMessage)
 	if *destroy {
-		fmt.Println("Items will be destroyed automatically after scanning.")
+		textPrintln("Items will be destroyed automatically after scanning.")
 	}
 }
 
 func runOrderSendCost(args []string, jsonOut bool) {
-	fs := flag.NewFlagSet("order send-cost", flag.ExitOnError)
-	items := fs.String("items", "", "item IDs to send (comma-separated)")
+	fs := flag.NewFlagSet("order send-cost", flag.ContinueOnError)
+	items := itemFlag(fs)
 	country := fs.String("country", "", "destination country ISO code (e.g. NZ)")
 	address := fs.String("address", "", "street address")
 	addressDetail := fs.String("address-detail", "", "address detail (e.g. unit number)")
 	suburb := fs.String("suburb", "", "suburb")
 	city := fs.String("city", "", "city")
 	state := fs.String("state", "", "state")
-	postCode := fs.Int("post-code", 0, "postal code")
-	fs.Parse(args)
+	postCode := fs.String("post-code", "", "postal code (text, including leading zeroes)")
+	parseFlags(fs, args)
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
@@ -102,18 +108,18 @@ func runOrderSendCost(args []string, jsonOut bool) {
 		return
 	}
 	if len(res.Services) == 0 {
-		fmt.Println("No shipping services returned.")
+		textPrintln("No shipping services returned.")
 		return
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "CARRIER\tSERVICE\tESTIMATE\tBEFORE DISC\tFREE SENDING\tMESSAGE")
+	fmt.Fprintln(w, "SERVICE ID\tCARRIER\tSERVICE\tESTIMATE\tBEFORE DISC\tFREE SENDING\tMESSAGE")
 	for _, s := range res.Services {
-		fmt.Fprintf(w, "%s\t%s\t%.2f\t%.2f\t%v\t%s\n",
-			s.Service.Carrier, s.Service.Name, s.Estimate, s.EstimateBeforeDiscount, s.QualifiesForFreeSending, s.Message)
+		textFprintf(w, "%d\t%s\t%s\t%.2f\t%.2f\t%v\t%s\n",
+			s.Service.ID, s.Service.Carrier, s.Service.Name, s.Estimate, s.EstimateBeforeDiscount, s.QualifiesForFreeSending, s.Message)
 	}
 	w.Flush()
 	if res.Meta.StatusMessage != "" {
-		fmt.Println("\n" + res.Meta.StatusMessage)
+		textPrintln("\n" + res.Meta.StatusMessage)
 	}
 }
 
@@ -123,11 +129,16 @@ func parseItemIDs(s string) ([]int, error) {
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p == "" {
-			continue
+			return nil, fmt.Errorf("empty item ID")
 		}
 		n, err := strconv.Atoi(p)
-		if err != nil {
+		if err != nil || n <= 0 {
 			return nil, fmt.Errorf("invalid item ID %q", p)
+		}
+		for _, existing := range ids {
+			if n == existing {
+				return nil, fmt.Errorf("duplicate item ID %d", n)
+			}
 		}
 		ids = append(ids, n)
 	}
@@ -138,8 +149,8 @@ func parseItemIDs(s string) ([]int, error) {
 }
 
 func runOrderSend(args []string, jsonOut bool) {
-	fs := flag.NewFlagSet("order send", flag.ExitOnError)
-	items := fs.String("items", "", "item IDs to send (comma-separated)")
+	fs := flag.NewFlagSet("order send", flag.ContinueOnError)
+	items := itemFlag(fs)
 	receiversName := fs.String("receivers-name", "", "recipient's name")
 	serviceID := fs.Int("service-id", 0, "shipping service ID")
 	addNew := fs.Bool("add-new", false, "create a new address entry")
@@ -149,8 +160,9 @@ func runOrderSend(args []string, jsonOut bool) {
 	addressDetail := fs.String("address-detail", "", "address detail (e.g. unit number)")
 	suburb := fs.String("suburb", "", "suburb")
 	city := fs.String("city", "", "city")
-	postCode := fs.Int("post-code", 0, "postal code")
-	fs.Parse(args)
+	state := fs.String("state", "", "destination state")
+	postCode := fs.String("post-code", "", "postal code (text, including leading zeroes)")
+	parseFlags(fs, args)
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
@@ -159,7 +171,7 @@ func runOrderSend(args []string, jsonOut bool) {
 	if strings.TrimSpace(*receiversName) == "" {
 		fatal("--receivers-name is required")
 	}
-	if *serviceID == 0 {
+	if *serviceID <= 0 {
 		fatal("--service-id is required")
 	}
 	if strings.TrimSpace(*countryISO) == "" {
@@ -181,8 +193,9 @@ func runOrderSend(args []string, jsonOut bool) {
 			AddressDetail: strPtr(*addressDetail),
 			Suburb:        strPtr(*suburb),
 			City:          strPtr(*city),
+			State:         strPtr(*state),
 			CountryISO:    *countryISO,
-			PostCode:      intPtr(*postCode),
+			PostCode:      strPtr(*postCode),
 		},
 	})
 	if err != nil {
@@ -193,12 +206,12 @@ func runOrderSend(args []string, jsonOut bool) {
 		printJSON(result)
 		return
 	}
-	fmt.Printf("Send order created for %d item(s).\n", len(ids))
-	fmt.Printf("Service: %s\n", result.Service.Name)
+	textPrintf("Send order created for %d item(s).\n", len(ids))
+	textPrintf("Service: %s\n", result.Service.Name)
 	if result.AddressVerified {
-		fmt.Println("Address verified: yes")
+		textPrintln("Address verified: yes")
 	} else {
-		fmt.Println("Address verified: no")
+		textPrintln("Address verified: no")
 	}
 	if d := result.Destination; d.Address != "" {
 		line := d.Address
@@ -211,9 +224,9 @@ func runOrderSend(args []string, jsonOut bool) {
 		if d.PostCode != "" {
 			line += " " + string(d.PostCode)
 		}
-		fmt.Printf("Destination: %s\n", line)
+		textPrintf("Destination: %s\n", line)
 	}
-	fmt.Printf("Estimated cost: $%.2f (range $%.2f - $%.2f)\n", result.Estimate, result.EstimateMin, result.EstimateMax)
+	textPrintf("Estimated cost: $%.2f (range $%.2f - $%.2f)\n", result.Estimate, result.EstimateMin, result.EstimateMax)
 }
 
 func strPtr(s string) *string {
@@ -231,15 +244,17 @@ func intPtr(n int) *int {
 }
 
 func runOrderDestroy(args []string, jsonOut bool) {
-	fs := flag.NewFlagSet("order destroy", flag.ExitOnError)
-	items := fs.String("items", "", "item IDs to destroy (comma-separated)")
-	fs.Parse(args)
+	fs := flag.NewFlagSet("order destroy", flag.ContinueOnError)
+	yes := fs.Bool("yes", false, "confirm destruction without prompting")
+	items := itemFlag(fs)
+	parseFlags(fs, args)
 
 	ids, err := parseItemIDs(*items)
 	if err != nil {
 		fatal("invalid --items:", err)
 	}
 
+	confirmDestruction(*yes, ids)
 	_, client := requireClient()
 	result, err := client.RequestDestroy(ids)
 	if err != nil {
@@ -250,8 +265,36 @@ func runOrderDestroy(args []string, jsonOut bool) {
 		printJSON(result)
 		return
 	}
-	fmt.Printf("Destruction queued for %d item(s).\n", len(ids))
+	textPrintf("Destruction queued for %d item(s).\n", len(ids))
 	if result.StatusMessage != "" {
-		fmt.Println(result.StatusMessage)
+		textPrintln(result.StatusMessage)
+	}
+}
+
+func itemFlag(fs *flag.FlagSet) *string {
+	value := new(string)
+	fs.Func("items", "positive item IDs, comma-separated or repeated", func(s string) error {
+		if strings.TrimSpace(s) == "" {
+			return fmt.Errorf("empty item IDs")
+		}
+		if *value != "" {
+			*value += ","
+		}
+		*value += s
+		return nil
+	})
+	return value
+}
+func confirmDestruction(yes bool, ids []int) {
+	if yes {
+		return
+	}
+	if currentOptions.json || currentOptions.noInput || !terminal.IsTerminal(os.Stdin) {
+		fatal("destruction requires explicit --yes when not interactive")
+	}
+	fmt.Fprintf(os.Stderr, "Destroy items %v? This is irreversible. Type yes to continue: ", ids)
+	answer, err := terminal.ReadLine()
+	if err != nil || answer != "yes" {
+		fatal("destruction cancelled; no request sent")
 	}
 }

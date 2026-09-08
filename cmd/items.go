@@ -33,9 +33,12 @@ func runItems(args []string, jsonOut bool) {
 }
 
 func listItems(jsonOut bool, kind string, args []string) {
-	fs := flag.NewFlagSet("items "+kind, flag.ExitOnError)
+	fs := flag.NewFlagSet("items "+kind, flag.ContinueOnError)
 	page := fs.Int("page", 1, "page number")
-	fs.Parse(args)
+	parseFlags(fs, args)
+	if *page < 1 {
+		fail(2, "--page must be positive")
+	}
 
 	_, client := requireClient()
 
@@ -55,7 +58,7 @@ func listItems(jsonOut bool, kind string, args []string) {
 	}
 	items := res.Items
 	if len(items) == 0 {
-		fmt.Println("No items.")
+		textPrintln("No items.")
 		return
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
@@ -65,7 +68,7 @@ func listItems(jsonOut bool, kind string, args []string) {
 		if it.From.Name != "" {
 			from = it.From.Name
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", it.ID, it.Received, it.Weight, it.Type, it.Status, it.ScanStatus, from, it.To)
+		textFprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", it.ID, it.Received, it.Weight, it.Type, it.Status, it.ScanStatus, from, it.To)
 	}
 	w.Flush()
 	printFooter(res.Pagination, res.Meta)
@@ -82,22 +85,25 @@ func listSentItems(client *api.Client, page int, jsonOut bool) {
 		return
 	}
 	if len(res.Items) == 0 {
-		fmt.Println("No items.")
+		textPrintln("No items.")
 		return
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tSENT\tTYPE\tWEIGHT\tSTATUS\tFROM\tTO\tDESTINATION")
 	for _, it := range res.Items {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", it.ID, it.SentAt, it.Type, it.Weight, it.Status, it.From, it.To, it.Destination)
+		textFprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", it.ID, it.SentAt, it.Type, it.Weight, it.Status, it.From, it.To, it.Destination)
 	}
 	w.Flush()
 	printFooter(res.Pagination, res.Meta)
 }
 
 func listScannedItems(jsonOut bool, args []string) {
-	fs := flag.NewFlagSet("items scanned", flag.ExitOnError)
+	fs := flag.NewFlagSet("items scanned", flag.ContinueOnError)
 	page := fs.Int("page", 1, "page number")
-	fs.Parse(args)
+	parseFlags(fs, args)
+	if *page < 1 {
+		fail(2, "--page must be positive")
+	}
 
 	_, client := requireClient()
 
@@ -112,7 +118,7 @@ func listScannedItems(jsonOut bool, args []string) {
 	}
 	items := res.Items
 	if len(items) == 0 {
-		fmt.Println("No scanned items.")
+		textPrintln("No scanned items.")
 		return
 	}
 
@@ -123,7 +129,7 @@ func listScannedItems(jsonOut bool, args []string) {
 		if from == "" {
 			from = it.Item.From.Text
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		textFprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			it.ScanID,
 			formatDateTime(it.ScannedDate),
 			it.Item.Type,
@@ -148,9 +154,9 @@ func printFooter(p api.Pagination, m api.Meta) {
 	if m.StatusMessage != "" {
 		parts = append(parts, m.StatusMessage)
 	}
-	fmt.Println("\n" + strings.Join(parts, " | "))
+	textPrintln("\n" + strings.Join(parts, " | "))
 	if p.LastPage > 1 {
-		fmt.Println("Tip: view other pages with --page N (e.g. --page 2)")
+		textPrintln("Tip: view other pages with --page N (e.g. --page 2)")
 	}
 }
 
@@ -174,10 +180,5 @@ func urlBaseName(u string) string {
 	return name
 }
 
-func clickable(u string) string {
-	label := u
-	if len(label) > 50 {
-		label = label[:47] + "..."
-	}
-	return fmt.Sprintf("\x1b]8;;%s\x1b\\%s\x1b]8;;\x1b\\", u, label)
-}
+// Plain URLs work when piped and do not introduce terminal escape sequences.
+func clickable(u string) string { return safeText(u) }

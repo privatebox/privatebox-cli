@@ -13,6 +13,12 @@ func TestParseGlobalFlags(t *testing.T) {
 		wantArgs    []string
 	}{
 		{
+			name:        "global-looking command flag value",
+			args:        []string{"order", "send", "--address", "--json", "--json"},
+			wantOptions: globalOptions{json: true},
+			wantArgs:    []string{"order", "send", "--address", "--json"},
+		},
+		{
 			name:        "JSON before command",
 			args:        []string{"--json", "status"},
 			wantOptions: globalOptions{json: true},

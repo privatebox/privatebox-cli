@@ -4,8 +4,10 @@ import "fmt"
 
 func runMeta(args []string, jsonOut bool) {
 	if len(args) < 1 {
-		fatal("usage: privatebox meta <countries|frequency>")
+		groupHelp("meta", "countries|frequency")
+		return
 	}
+	noFlags("meta "+args[0], args[1:])
 	switch args[0] {
 	case "countries":
 		showCountries(jsonOut)
@@ -26,13 +28,13 @@ func showCountries(jsonOut bool) {
 		printJSON(countries)
 		return
 	}
-	fmt.Printf("%-6s %s\n", "CODE", "NAME")
+	textPrintf("%-6s %s\n", "CODE", "NAME")
 	for _, c := range countries {
 		name := c.PrintableName
 		if name == "" {
 			name = c.Name
 		}
-		fmt.Printf("%-6s %s\n", c.ISO, name)
+		textPrintf("%-6s %s\n", c.ISO, name)
 	}
 }
 
@@ -46,8 +48,8 @@ func showFrequencies(jsonOut bool) {
 		printJSON(freqs)
 		return
 	}
-	fmt.Printf("%-6s %s\n", "ID", "NAME")
+	textPrintf("%-6s %s\n", "ID", "NAME")
 	for _, f := range freqs {
-		fmt.Printf("%-6s %s\n", f.ID, f.Name)
+		textPrintf("%-6s %s\n", f.ID, f.Name)
 	}
 }

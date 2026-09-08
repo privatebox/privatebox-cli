@@ -1,7 +1,4 @@
 // Package api wraps HTTP calls to the PrivateBox API.
-//
-// The paths and JSON shapes below are placeholders based on the CLI's
-// command surface — adjust them to match your actual API.
 package api
 
 import (
@@ -10,11 +7,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
+
+var UserAgent = "privatebox/dev"
 
 type Client struct {
 	baseURL    string
@@ -29,7 +29,8 @@ func NewClient(baseURL, token, deviceID string) *Client {
 		token:    token,
 		deviceID: deviceID,
 		httpClient: &http.Client{
-			Timeout: 15 * time.Second,
+			Timeout:       15 * time.Second,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse },
 		},
 	}
 }
@@ -37,6 +38,9 @@ func NewClient(baseURL, token, deviceID string) *Client {
 // doJSON sends a JSON request (if reqBody != nil) and decodes a JSON
 // response into out (if out != nil). Adds the bearer token when set.
 func (c *Client) doJSON(method, path string, reqBody, out interface{}) error {
+	if _, err := CanonicalBaseURL(c.baseURL); err != nil {
+		return err
+	}
 	var bodyReader io.Reader
 	if reqBody != nil {
 		b, err := json.Marshal(reqBody)
@@ -50,6 +54,8 @@ func (c *Client) doJSON(method, path string, reqBody, out interface{}) error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", UserAgent)
 	if reqBody != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -62,19 +68,31 @@ func (c *Client) doJSON(method, path string, reqBody, out interface{}) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("could not reach %s: %w", c.baseURL, err)
+		if strings.HasPrefix(path, "/order/") && path != "/order/send/cost" {
+			return fmt.Errorf("order outcome unknown: request may have reached the server; check your inbox/orders or contact support before retrying")
+		}
+		return fmt.Errorf("request failed; check connectivity and try again")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		msg, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode >= 500 && strings.HasPrefix(path, "/order/") && path != "/order/send/cost" {
+			return fmt.Errorf("order outcome unknown: server error; check orders before retrying")
+		}
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 64*1024))
 		return fmt.Errorf("server returned %d: %s", resp.StatusCode, apiErrorMessage(msg))
 	}
 
 	if out == nil {
 		return nil
 	}
-	return json.NewDecoder(resp.Body).Decode(out)
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 16<<20)).Decode(out); err != nil {
+		if strings.HasPrefix(path, "/order/") && path != "/order/send/cost" {
+			return fmt.Errorf("order outcome unknown: invalid acknowledgement; check orders before retrying")
+		}
+		return fmt.Errorf("invalid API response: %w", err)
+	}
+	return nil
 }
 
 // apiErrorMessage extracts a readable message from an error response
@@ -325,8 +343,8 @@ func (c *Client) GetScannedItems(page int) (ListResult[ScannedItem], error) {
 // --- orders ---
 
 type OrderResult struct {
-	OrderID string `json:"order_id"`
-	Status  string `json:"status"`
+	StatusCode    int    `json:"status_code"`
+	StatusMessage string `json:"status_message"`
 }
 
 // DestroyResult is the response returned by /order/destroy.
@@ -342,6 +360,9 @@ func (c *Client) RequestScan(itemIDs []int, destroyAfterScan bool) (OrderResult,
 		"items":   itemIDs,
 		"destroy": destroyAfterScan,
 	}, &out)
+	if err == nil && out.StatusMessage == "" {
+		err = fmt.Errorf("order outcome unknown: missing scan acknowledgement; check scan status before retrying")
+	}
 	return out, err
 }
 
@@ -355,7 +376,8 @@ type PlaceAddress struct {
 	Suburb        *string `json:"suburb"`
 	City          *string `json:"city"`
 	CountryISO    string  `json:"country_iso"`
-	PostCode      *int    `json:"post_code"`
+	State         *string `json:"state"`
+	PostCode      *string `json:"post_code"`
 }
 
 type SendOrderRequest struct {
@@ -412,7 +434,7 @@ type SendAddress struct {
 	Suburb        string `json:"suburb"`
 	City          string `json:"city"`
 	State         string `json:"state"`
-	PostCode      int    `json:"post_code"`
+	PostCode      string `json:"post_code"`
 	CountryISO    string `json:"country_iso"`
 }
 
@@ -483,4 +505,27 @@ func (c *Client) GetFrequencies() ([]Frequency, error) {
 	}
 	err := c.doJSON(http.MethodGet, "/frequency", nil, &out)
 	return out.Frequencies, err
+}
+
+// CanonicalBaseURL keeps credentials scoped to an exact API endpoint, including
+// its base path. Only loopback development servers may use plaintext HTTP.
+func CanonicalBaseURL(raw string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return "", fmt.Errorf("invalid API URL")
+	}
+	u.Scheme = strings.ToLower(u.Scheme)
+	host := strings.ToLower(u.Hostname())
+	if u.Scheme != "https" && !(u.Scheme == "http" && (host == "localhost" || host == "127.0.0.1" || host == "::1")) {
+		return "", fmt.Errorf("API URL must use HTTPS (HTTP is permitted only on loopback for development)")
+	}
+	u.Host = strings.ToLower(u.Host)
+	if u.Scheme == "https" && u.Port() == "443" {
+		u.Host = host
+		if strings.Contains(host, ":") {
+			u.Host = "[" + host + "]"
+		}
+	}
+	u.Path = strings.TrimRight(u.Path, "/")
+	return strings.TrimRight(u.String(), "/"), nil
 }
