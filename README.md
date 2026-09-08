@@ -32,12 +32,16 @@ privatebox meta countries                        List reference country codes
 privatebox meta frequency                        List reference scan-frequency options
 
 privatebox --json <command>                      Machine-readable JSON output for any command
-privatebox --help / --version
+privatebox -h / --help                           Show help
+privatebox -v / --version                        Show version
 ```
 
 `--items` takes a comma-separated list of item IDs, e.g. `--items 1001,1003`.
 All list endpoints support `--page N`; when more than one page exists the
 footer shows `page X of Y` and a hint to use `--page`.
+Global flags can be placed before or after the command, for example
+`privatebox --json items sent` and `privatebox items sent --json` are
+equivalent.
 
 ### Login flow
 
@@ -234,7 +238,7 @@ Address verified: yes
 Destination: 15 Beaumonts Way, Manurewa, Auckland 2102
 Estimated cost: $4.60 (range $4.60 - $4.60)
 
-$ privatebox --json items sent
+$ privatebox items sent --json
 {
   "items": [ ... ],
   "pagination": { ... },

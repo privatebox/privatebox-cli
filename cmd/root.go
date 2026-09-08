@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/privatebox/privatebox-cli/internal/api"
 	"github.com/privatebox/privatebox-cli/internal/config"
@@ -13,34 +14,33 @@ import (
 
 var version = "dev"
 
+type globalOptions struct {
+	json        bool
+	help        bool
+	showVersion bool
+}
+
 // Execute parses global flags, then dispatches to the right subcommand.
 // This is a small hand-rolled router (stdlib flag package only);
 // swap in spf13/cobra later if the command tree grows much larger.
 func Execute() {
-	fs := flag.NewFlagSet("privatebox", flag.ContinueOnError)
-	fs.Usage = printHelp
-
-	jsonOut := fs.Bool("json", false, "output machine-readable JSON")
-	help := fs.Bool("help", false, "show this help message")
-	showVersion := fs.Bool("version", false, "show version")
-
-	if err := fs.Parse(os.Args[1:]); err != nil {
+	options, args, err := parseGlobalFlags(os.Args[1:])
+	if err != nil {
 		if err == flag.ErrHelp {
 			os.Exit(0)
 		}
 		os.Exit(2)
 	}
 
-	if *help {
+	if options.help {
 		printHelp()
 		return
 	}
-	if *showVersion {
+	if options.showVersion {
 		fmt.Println("privatebox version " + version)
 		return
 	}
 
-	args := fs.Args()
 	if len(args) == 0 {
 		printHelp()
 		return
@@ -48,21 +48,77 @@ func Execute() {
 
 	switch args[0] {
 	case "auth":
-		runAuth(args[1:], *jsonOut)
+		runAuth(args[1:], options.json)
 	case "status":
-		runStatus(args[1:], *jsonOut)
+		runStatus(args[1:], options.json)
 	case "items":
-		runItems(args[1:], *jsonOut)
+		runItems(args[1:], options.json)
 	case "order":
-		runOrder(args[1:], *jsonOut)
+		runOrder(args[1:], options.json)
 	case "meta":
-		runMeta(args[1:], *jsonOut)
+		runMeta(args[1:], options.json)
 	case "help":
 		printHelp()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", args[0])
 		printHelp()
 		os.Exit(1)
+	}
+}
+
+func parseGlobalFlags(args []string) (globalOptions, []string, error) {
+	fs := flag.NewFlagSet("privatebox", flag.ContinueOnError)
+	fs.Usage = printHelp
+
+	var options globalOptions
+	fs.BoolVar(&options.json, "json", false, "output machine-readable JSON")
+	fs.BoolVar(&options.help, "h", false, "show this help message")
+	fs.BoolVar(&options.help, "help", false, "show this help message")
+	fs.BoolVar(&options.showVersion, "v", false, "show version")
+	fs.BoolVar(&options.showVersion, "version", false, "show version")
+
+	if err := fs.Parse(globalFlagsFirst(args)); err != nil {
+		return globalOptions{}, nil, err
+	}
+	return options, fs.Args(), nil
+}
+
+// globalFlagsFirst moves recognised global flags before the command so the
+// standard library flag parser accepts them on either side of a subcommand.
+// Arguments following -- are left untouched.
+func globalFlagsFirst(args []string) []string {
+	global := make([]string, 0, len(args))
+	rest := make([]string, 0, len(args))
+
+	for i, arg := range args {
+		if arg == "--" {
+			rest = append(rest, args[i:]...)
+			break
+		}
+		if isGlobalFlag(arg) {
+			global = append(global, arg)
+			continue
+		}
+		rest = append(rest, arg)
+	}
+
+	return append(global, rest...)
+}
+
+func isGlobalFlag(arg string) bool {
+	if !strings.HasPrefix(arg, "-") || arg == "-" {
+		return false
+	}
+
+	name := strings.TrimPrefix(arg, "-")
+	name = strings.TrimPrefix(name, "-")
+	name, _, _ = strings.Cut(name, "=")
+
+	switch name {
+	case "json", "h", "help", "v", "version":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -92,10 +148,12 @@ Global Flags:
   -h, --help       Show this help message
   -v, --version    Show version
 
+Global flags may be placed before or after the command.
+
 Examples:
   privatebox auth login --email you@example.com
   privatebox order scan --items 1001 --items 1002 --destroy
-  privatebox --json items sent
+  privatebox items sent --json
 `)
 }
 
