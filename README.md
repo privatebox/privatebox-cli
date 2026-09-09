@@ -334,8 +334,10 @@ $ privatebox items sent --json
 
 ## Where local (non-secret) session data is stored
 
-an endpoint-scoped `~/.privatebox/session-<hash>.json` file, permissions `0600` (owner read/write only).
-On Windows this resolves to `%USERPROFILE%\.privatebox\config.json`. It
-holds the logged-in name and email; the token itself lives in the OS
-keyring when available (see above), and only appears in this file as a
-fallback.
+Endpoint-scoped session files live at `~/.privatebox/session-<hash>.json`,
+permissions `0600` (owner read/write only). On Windows this resolves to
+`%USERPROFILE%\.privatebox\session-<hash>.json`. The file holds the logged-in
+name and email. The token itself lives in the OS keyring when available (see
+above), and only appears in this file as a Unix fallback when no keyring
+backend exists. Windows never stores the token in this file. Legacy
+`config.json` paths are not used.

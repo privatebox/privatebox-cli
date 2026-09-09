@@ -9,6 +9,20 @@ import (
 	"testing"
 )
 
+func TestReadmeDocumentsEndpointScopedSessionFiles(t *testing.T) {
+	data, err := os.ReadFile("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(data)
+	if strings.Contains(body, `%USERPROFILE%\.privatebox\config.json`) {
+		t.Fatal("README still documents the legacy Windows config.json path as current")
+	}
+	if !strings.Contains(body, `%USERPROFILE%\.privatebox\session-<hash>.json`) {
+		t.Fatal("README missing the Windows endpoint-scoped session path")
+	}
+}
+
 // Execute the documented macOS block with an intentionally wrong checksum.
 // Extraction and privileged installation are inert stubs and must never run.
 func TestMacOSInstructionsFailClosed(t *testing.T) {
