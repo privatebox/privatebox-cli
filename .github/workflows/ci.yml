@@ -3,16 +3,29 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: false
@@ -26,7 +39,18 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: go test -race -count=1 ./...
+
+      - name: Native credential-store integration
+        if: runner.os != 'Linux'
+        env:
+          PRIVATEBOX_TEST_NATIVE_KEYRING: "1"
+        run: go test -count=1 -run TestNativeStoreRoundTrip ./internal/keyring
 
       - name: Build
-        run: go build ./...
+        run: go build -o "$RUNNER_TEMP/privatebox$(go env GOEXE)" .
+
+      - name: Scan source and built binary
+        run: |
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 -mode=binary "$RUNNER_TEMP/privatebox$(go env GOEXE)"

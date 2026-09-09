@@ -52,7 +52,7 @@ func TestInstaller(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			for _, tool := range []string{"awk", "mktemp", "rm", "sha256sum", "cp"} {
+			for _, tool := range []string{"awk", "mktemp", "rm", "sha256sum", "cp", "chmod"} {
 				source, err := exec.LookPath(tool)
 				if err != nil {
 					t.Fatal(err)

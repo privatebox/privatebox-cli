@@ -32,7 +32,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 repository=https://github.com/privatebox/privatebox-cli
-release_url=$(curl --proto '=https' --proto-redir '=https' -fsSL -o /dev/null \
+release_url=$(curl --connect-timeout 15 --max-time 120 --proto '=https' --proto-redir '=https' -fsSL -o /dev/null \
   -w '%{url_effective}' "$repository/releases/latest")
 tag=${release_url##*/}
 [[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'Could not resolve the latest stable release.'
@@ -46,9 +46,9 @@ fi
 download_dir=$(mktemp -d)
 trap 'rm -rf -- "$download_dir"' EXIT
 printf 'Downloading Private Box %s for Linux %s...\n' "$tag" "$arch"
-curl --proto '=https' --proto-redir '=https' -fsSL \
+curl --connect-timeout 15 --max-time 120 --proto '=https' --proto-redir '=https' -fsSL \
   "$repository/releases/download/$tag/$asset" -o "$download_dir/$asset"
-curl --proto '=https' --proto-redir '=https' -fsSL \
+curl --connect-timeout 15 --max-time 120 --proto '=https' --proto-redir '=https' -fsSL \
   "$repository/releases/download/$tag/checksums.txt" -o "$download_dir/checksums.txt"
 
 checksum=$(awk -v asset="$asset" '$2 == asset { print $1 }' "$download_dir/checksums.txt")
@@ -58,7 +58,11 @@ printf '%s  %s\n' "$checksum" "$asset" | (cd "$download_dir" && sha256sum --chec
 printf 'Installing %s (administrator access may be requested)...\n' "$tag"
 case "$format" in
   deb)
-    "${elevate[@]}" apt-get -o APT::Sandbox::User=root install -y "$download_dir/$asset"
+    # Permit _apt to traverse this directory and read the verified public
+    # package without allowing other users to list or modify its contents.
+    chmod 0711 "$download_dir"
+    chmod 0644 "$download_dir/$asset"
+    "${elevate[@]}" apt-get install -y "$download_dir/$asset"
     ;;
   rpm)
     "${elevate[@]}" dnf install -y "$download_dir/$asset"

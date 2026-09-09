@@ -4,6 +4,7 @@ package keyring
 
 import (
 	"bytes"
+	"errors"
 	"os/exec"
 	"strings"
 )
@@ -36,8 +37,13 @@ func Get(service, account string) (string, error) {
 	var out bytes.Buffer
 	cmd := exec.Command("secret-tool", "lookup", "service", service, "account", account)
 	cmd.Stdout = &out
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return "", ErrNotFound
+		if exit, ok := err.(*exec.ExitError); ok && exit.ExitCode() == 1 && stderr.Len() == 0 {
+			return "", ErrNotFound
+		}
+		return "", errors.New("keyring: cannot read Secret Service; unlock the store or restore the session bus")
 	}
 	val := strings.TrimRight(out.String(), "\n")
 	if val == "" {
@@ -51,5 +57,13 @@ func Delete(service, account string) error {
 		return ErrUnavailable
 	}
 	cmd := exec.Command("secret-tool", "clear", "service", service, "account", account)
-	return cmd.Run()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if exit, ok := err.(*exec.ExitError); ok && exit.ExitCode() == 1 && stderr.Len() == 0 {
+			return ErrNotFound
+		}
+		return errors.New("keyring: could not delete session from Secret Service")
+	}
+	return nil
 }

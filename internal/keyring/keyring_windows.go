@@ -67,6 +67,9 @@ func Set(service, account, secret string) error {
 
 	ret, _, err := procCredWrite.Call(uintptr(unsafe.Pointer(&cred)), 0)
 	if ret == 0 {
+		if err == syscall.ERROR_NOT_FOUND {
+			return ErrNotFound
+		}
 		return err
 	}
 	return nil
@@ -79,14 +82,17 @@ func Get(service, account string) (string, error) {
 	}
 
 	var pcred *credential
-	ret, _, _ := procCredRead.Call(
+	ret, _, err := procCredRead.Call(
 		uintptr(unsafe.Pointer(targetName)),
 		uintptr(credTypeGeneric),
 		0,
 		uintptr(unsafe.Pointer(&pcred)),
 	)
 	if ret == 0 {
-		return "", ErrNotFound
+		if err == syscall.ERROR_NOT_FOUND {
+			return "", ErrNotFound
+		}
+		return "", err
 	}
 	defer procCredFree.Call(uintptr(unsafe.Pointer(pcred)))
 
@@ -101,6 +107,9 @@ func Delete(service, account string) error {
 	}
 	ret, _, err := procCredDelete.Call(uintptr(unsafe.Pointer(targetName)), uintptr(credTypeGeneric), 0)
 	if ret == 0 {
+		if err == syscall.ERROR_NOT_FOUND {
+			return ErrNotFound
+		}
 		return err
 	}
 	return nil
