@@ -1,6 +1,6 @@
 module github.com/privatebox/privatebox-cli
 
-go 1.27.1
+go 1.27.3
 
 require (
 	github.com/zalando/go-keyring v0.2.8

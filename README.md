@@ -275,7 +275,7 @@ about an unsigned executable the first time it runs.
 
 ## Building locally
 
-Building locally requires Go 1.27.1 or newer:
+Building locally requires Go 1.27.3 or newer:
 
 ```bash
 go build -o privatebox .
